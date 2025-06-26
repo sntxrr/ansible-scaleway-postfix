@@ -43,9 +43,31 @@ Easily configure a secure, production-ready Postfix SMTP relay on any server usi
 
 4. **Run the playbook:**
    ```sh
-   ansible-playbook -i <your_inventory> postfix-standalone.yml
+   ansible-playbook -i inventory postfix-standalone.yml
    ```
-   Replace `<your_inventory>` with your Ansible inventory file or host.
+   By default, this uses the provided `inventory` file to specify your target hosts.
+
+---
+
+## 🗂️ Example Inventory File
+
+The `inventory` file defines which servers Ansible will target. Here's an example:
+
+```ini
+ec2instance1 ansible_host=ec2instance1 ansible_user=root
+ec2instance2 ansible_host=ec2instance2 ansible_user=root
+#ec2instance3 ansible_host=ec2instance3.your-domain.com ansible_user=yourusername ansible_ssh_private_key_file=~/.ssh/id_ed25519
+```
+
+- Each line represents a host.
+- `ansible_host`: The hostname or IP address of the server.
+- `ansible_user`: The SSH user Ansible will use to connect.
+- `ansible_ssh_private_key_file`: (Optional) Path to your SSH private key for authentication.
+- Lines starting with `#` are comments and ignored by Ansible.
+
+**Tip:**
+- You can add as many hosts as you like, or group them using Ansible inventory groups for more advanced scenarios.
+- For more, see the [Ansible inventory documentation](https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html).
 
 ---
 
