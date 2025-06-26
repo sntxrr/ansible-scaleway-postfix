@@ -1,0 +1,63 @@
+---
+# Standalone playbook for configuring Postfix SMTP relay
+- hosts: all
+  become: yes
+  become_method: sudo
+  vars:
+    op_account_name: your-1password
+    op_vault_name: Private
+    op_postfix_item: Scaleway
+  pre_tasks:
+    - name: Get 1Password account list
+      local_action:
+        module: shell
+        cmd: op account list --format json
+      register: op_accounts
+      run_once: true
+      changed_when: false
+      failed_when: false
+      become: false
+
+    - name: Extract your-1password account details from initial list
+      set_fact:
+        your_1password_account: "{{ op_accounts.stdout | from_json | selectattr('url', 'search', op_account_name) | list | first | default({}) }}"
+      run_once: true
+      when: op_accounts.rc == 0 and op_accounts.stdout is defined and op_accounts.stdout != ""
+
+    - name: Prompt for sign-in if account not found, and retry
+      block:
+        - name: Prompt for specific 1Password sign in
+          pause:
+            prompt: |
+              The '{{ op_account_name }}' 1Password account was not found in your current session.
+              Please sign in using: op signin --account {{ op_account_name }}.1password.com
+              Then press Enter to continue.
+          run_once: true
+          delegate_to: localhost
+
+        - name: Get 1Password account list (retry)
+          local_action:
+            module: shell
+            cmd: op account list --format json
+          register: op_accounts_retry
+          run_once: true
+          changed_when: false
+          failed_when: op_accounts_retry.rc != 0
+          become: false
+
+        - name: Re-extract your-1password account details
+          set_fact:
+            your_1password_account: "{{ op_accounts_retry.stdout | from_json | selectattr('url', 'search', op_account_name) | list | first | default({}) }}"
+          run_once: true
+          when: op_accounts_retry.rc == 0 and op_accounts_retry.stdout is defined and op_accounts_retry.stdout != ""
+      when: your_1password_account is not defined or your_1password_account.url is not defined
+      run_once: true
+
+    - name: Fail if your-1password account not found after retry
+      fail:
+        msg: "The '{{ op_account_name }}' 1Password account was still not found after attempting to sign in. Please check your `op` CLI session."
+      when: your_1password_account is not defined or your_1password_account.url is not defined
+      run_once: true
+
+  roles:
+    - postfix 
